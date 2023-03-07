@@ -1,0 +1,103 @@
+ Notes on the design and use of the Borehole Optical Spectral Sensor
+ ===================================================================
+
+Author: Bob Hawley <bo@LL-phoenix.local>
+Date: 2017-12-18 15:30:54 EST
+
+
+(or Borheole Optical Spectral Stragigraphy instrument)...
+
+1 Basic concept 
+~~~~~~~~~~~~~~~~
+  The basic idea is that we're measuring backscattering of light in
+  the near IR portion of the spectrum.  We have an incandesent bulb
+  casting light on the borehole, and a small circuit board based on
+  the AMS AS7263 NIR sensor chip.  The tool consists of 3 major
+  subsystems: the light source, the NIR detector, and the system for
+  data transmission.  They are all housed in a PVC casing made for the
+  purpose.  
+
+2 Source 
+~~~~~~~~~
+  The light source is basically a home-made flashlight powered by 3
+  D-cell batteries.  I've included a power switch to make life a
+  little easier.  The D-cells in series supply about 4.5 V to the
+  lamp, which draws about 0.1 A (100 mA).  The D-cells when warm can supply
+  about 12000 mAh, so when cold they really should be able to power
+  mutiple logs.  
+
+3 NIR detector 
+~~~~~~~~~~~~~~~
+
+3.1 The AS7263 chip and breakout board 
+=======================================
+   The AS7263 chip itself is in the center of the breakout board which
+   comes from Sparkfun: [https://www.sparkfun.com/products/14351]
+   The datasheet is linked from there, but it's at
+   [https://cdn.sparkfun.com/assets/learn\_tutorials/1/4/3/AS7263\_Datasheet.pdf]. 
+   It senses in 6 channels, centered at  610 nm, 680 nm, 730 nm, 760 nm,
+   810 nm and 860 nm.  Channels are roughly 20 nm wide.  The chip
+   communicates with an Arduino Pro mini via the i2c protocol (clocked
+   serial).  
+
+   [https://cdn.sparkfun.com/assets/learn\_tutorials/1/4/3/AS7263\_Datasheet.pdf]: https://cdn.sparkfun.com/assets/learn_tutorials/1/4/3/AS7263_Datasheet.pdf
+
+3.2 The Arduino pro mini 
+=========================
+   the arduino pro mini reads the data from the AS7263 and sends it
+   out on the serial line.  The program listing for the arduino is
+   provided separately.  The basic blocks though are:
+
+3.2.1 Setup 
+------------
+    Check the positions of the DIP switches and configure the gain and
+    baud rates accordingly.  The DIP switch is accessable through the
+    lower window (closest to the sensor).  The first 2 bits of the DIP
+    switch are for baud rate.  If both are ON (11), baud is 115,200.
+    If 1 is ON, 2 is OFF (10), 57,600.  1 OFF 2 ON (01), 19,200, and
+    both OFF (00) 9600.  If there's something funny going on, it
+    defaults to 9600.  The second two bits are for gain control.
+    Gain settings are 0 through 3 with 3 being the highest gain.
+    Similarly, but in reverse, switches at (11) for gain 0, (10) for
+    gain 1, (01) for gain 2, and (00) for gain 3, with gain 3 being the
+    default.  
+
+    Both of these are for ease of figuring stuff out in the field; I
+    don't think the sensor should saturate at high gain setting but if
+    it does we can set the gain lower.  Similarly, I think the high
+    baud rates should be ok, but if you're getting comms errors,
+    reducing the rate should help.  
+
+    The arduino then brings digital pin 3 HIGH, enabling transmit on
+    the RS485 transceiver chip.  
+
+3.2.2 Loop 
+-----------
+    The loop is pretty simple- it just gets the calibrated values of
+    each channel and then prints them to the serial port through
+    RS485, and also through the USB serial port (for debugging- it
+    should be set to 115,300).  
+
+4 RS-485 transciever to the surface 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   The RS-485 transciever just tanslates the TTL level (0-5 volts)
+   serial signals to RS-485 levels; RS-485 operates on a differential
+   basis, so there is no signal and ground wire, it's the difference
+   between the A wire and B wire that tells 0 vs 1.  In our case,
+   we're using the white/A/inner conductor of the logging cable versus
+   the green/B/armor of the cable.  This is the only thing I haven't
+   tested, so hopefully it works!  At the surface, I have an RS-485 to
+   RS-232 'sniffer' box- powered by anything from 5-12 volts, it
+   accepts the A and B signal lines (connect to a and b from the
+   winch/set-to-box) and outputs standard RS-232 spec serial to
+   interface with a standard PC COM port.  You then log with realterm,
+   or just cat from the port, or minicom, etc etc.  Many logging
+   options.  
+
+5 Power 
+~~~~~~~~
+  The whole acquisition/data transmission is powered by a little 9 V
+  battery.  The logger takes about 1.3 mA, so a typical 500 mAh 9 V
+  battery should power it for a long time in the warm, not sure how
+  well in cold but we're way over spec so it will hopefully work out
+  ok.
